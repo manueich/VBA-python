@@ -32,7 +32,10 @@ def GaussNewton(data, t, posterior, priors, suffStat, options):
             warnings.simplefilter("ignore")
             I, NextdeltaMu, Sigma, suffStat2 = get_move(mu, data, t, posterior, priors, suffStat.copy(), options)
         deltaI = I - previousI
-        rdf = deltaI / np.abs(previousI)
+        if previousI == 0:
+            rdf = np.NaN
+        else:
+            rdf = deltaI / np.abs(previousI)
 
         # Accept move or halve step size
         if deltaI < 0:  # Half step size
@@ -126,14 +129,16 @@ def get_move(mu, data, t, posterior, priors, suffStat, options):
         I = -np.inf
 
     # Update suffstat
-    model_out = {"y": y,
+    model_out = {"t":t,
+                 "y": y,
                  "muX": muX,
                  "SigmaX": SigmaX,
                  "dXdTh": dXdTh,
                  "dXdX0": dXdX0,
                  "dYdPhi": dYdPhi,
                  "dYdTh": dYdTh,
-                 "dYdX0": dYdX0}
+                 "dYdX0": dYdX0,
+                 "dG_dP": dG_dP}
 
     suffStat.update({"Iphi": I})
     suffStat.update({"gx": gx})
@@ -143,6 +148,7 @@ def get_move(mu, data, t, posterior, priors, suffStat, options):
     suffStat.update({"dP": dmu0})
     suffStat.update({"div": div})
     suffStat.update({"model_out": model_out})
+    suffStat.update({"SigmaP": posterior["SigmaP"]})
 
     return I, dmu, Sigma, suffStat
 

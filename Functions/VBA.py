@@ -1,12 +1,19 @@
 import numpy as np
-from Functions import VBA_UpdateHP as VBA_HP, VBA_GaussNewton as VBA_GN, VBA_Initialise as VBA_init
+from Functions import VBA_UpdateHP as VBA_HP, VBA_GaussNewton as VBA_GN, VBA_Initialise as VBA_init, \
+    VBA_plotting as plotting
 from timeit import default_timer as timer
+import matplotlib.pyplot as plt
 
 
 def main(data, t, priors, options):
 
     # Check inputs Get initial estimates with priors
-    posterior, priors, suffStat = VBA_init.Initialize(data, t, priors, options)
+    posterior, priors, options, suffStat = VBA_init.Initialize(data, t, priors.copy(), options.copy())
+
+    # Plot data and priors
+    if options["Display"]:
+        ax = plotting.plot_data(data)
+        ax = plotting.plot_model(ax, suffStat, posterior, priors, data, options)
 
     # -----------------------------------------------------------
     # Main iteration loop maximising Free Energy
@@ -31,6 +38,10 @@ def main(data, t, priors, options):
             dF = suffStat["F"][-1] - F0
             print('VB iteration #', it, '         F=', np.round(float(suffStat["F"][-1]), 1), '         ... dF=', np.round(float(dF), 3))
 
+        # Plot current State
+        if options["Display"]:
+            ax = plotting.plot_model(ax, suffStat, posterior, priors, data, options)
+
         # Check Convergence Criterion
         F = suffStat["F"]
         dF = F[-1] - F[-2]
@@ -49,6 +60,10 @@ def main(data, t, priors, options):
            "F": suffStat["F"]}
 
     print('VB inversion complete (took ~', end-start, 's).')
+
+    # Keep Figure Window displayed
+    if options["Display"]:
+        plt.show()
 
     return posterior, out
 

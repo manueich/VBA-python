@@ -1,21 +1,22 @@
 import numpy as np
 
 def f_model(X, th, u, inF):
-    # Define Model function with Euler solver
+    # Model of linear damped harmonic oscillator function with the following equation
+    # d2X/d2t + 2*th[0]*th[1]*dX/dt + th[0]^2*X = 0
 
-    n = 2
-    pn = 3
+    n = 2               # Model Order
+    n_theta = 2         # No of parameters
     dt = inF["dt"]
 
     # Model Equations
     fx = np.zeros((n, 1))
     fx[0] = X[1]
-    fx[1] = -2 * th[0] * th[1] * X[1] - th[0]**2 * X[0] - th[2]
+    fx[1] = -2 * th[0] * th[1] * X[1] - th[0]**2 * X[0]
 
     # Next step (Euler)
-    fx = fx * dt + X
+    # fx = fx * dt + X
 
-    # Jacobian
+    # Jacobian Matrix
     J = np.zeros((n, n))
     J[0, 0] = 0
     J[0, 1] = 1
@@ -23,13 +24,11 @@ def f_model(X, th, u, inF):
     J[1, 1] = -2 * th[0] * th[1]
 
     # Parameter gradient
-    H = np.zeros((n, pn))
+    H = np.zeros((n, n_theta))
     H[0, 0] = 0
     H[0, 1] = 0
-    H[0, 2] = 0
     H[1, 0] = -2 * th[1] * X[1] - 2 * th[0] * X[0]
     H[1, 1] = -2 * th[0] * X[1]
-    H[1, 2] = -1
 
     return fx, J, H
 
@@ -37,21 +36,9 @@ def f_model(X, th, u, inF):
 def f_obs(X, phi, u, inG):
     # Observation function
 
-    n_phi = 1
+    n_phi = 0
     nY = 1
     n = 2
-
-    # gx = np.zeros((nY, 1))
-    # gx[0] = X[0] * phi[0]
-    # gx[1] = X[1]
-    # dG_dX = np.zeros((nY, n))
-    # dG_dX[0, 0] = phi[0]
-    # dG_dX[0, 1] = 0
-    # dG_dX[1, 0] = 0
-    # dG_dX[1, 1] = 1
-    # dG_dPhi = np.zeros((nY, n_phi))
-    # dG_dPhi[0, 0] = X[0]
-    # dG_dPhi[1, 0] = 0
 
     gx = np.zeros((1, 1))
     gx[0] = X[0]
@@ -59,10 +46,5 @@ def f_obs(X, phi, u, inG):
     dG_dX[0, 0] = 1
     dG_dX[0, 1] = 0
     dG_dPhi = np.array([[]])
-
-    # gx = phi[0]
-    # dG_dX = np.array([[]])
-    # dG_dPhi = np.zeros((nY, n_phi))
-    # dG_dPhi[0, 0] = 1
 
     return gx, dG_dX, dG_dPhi

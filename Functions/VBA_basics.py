@@ -3,7 +3,6 @@ import scipy.linalg as la
 import scipy.special as spec
 import warnings
 
-
 def solveODE(t, muP, SigmaP, u,  options):
     # Function solves the ODE and provides the sensitivity equations,
     # i.e. derivatives of model states and output with respect to parameters and initial conditions
@@ -47,12 +46,14 @@ def solveODE(t, muP, SigmaP, u,  options):
 
     # Loop over integration time
     for i in range(0, t.size - 1):
-        x[:, [i + 1]], J, H = f_model(x[:, [i]], th, u[:, [i]], options["inF"])
-        y[:, [i + 1]], dY_dX, dY_dPhi = f_obs(x[:, [i + 1]], phi, u[:, [i]], options["inG"])
 
-        # Calculate Sensitivities of model states wrt
-        dXdTh[i + 1] = (H + J @ dXdTh[i])*dt + dXdTh[i]    # Evolution Parameters
-        dXdX0[i + 1] = (J @ dXdX0[i])*dt + dXdX0[i]        # Initial Conditions
+        # Model
+        if options["ODESolver"] == 'RK':
+            x[:, [i + 1]], dXdTh[i + 1], dXdX0[i + 1] = Runge_Kutta(f_model, i, x[:, [i]], dXdTh[i], dXdX0[i], u, th, options)
+        if options["ODESolver"] == 'Euler':
+            x[:, [i + 1]], dXdTh[i + 1], dXdX0[i + 1] = Euler(f_model, i, x[:, [i]], dXdTh[i], dXdX0[i], u, th, options)
+        # Observation
+        y[:, [i + 1]], dY_dX, dY_dPhi = f_obs(x[:, [i + 1]], phi, u[:, [i]], options["inG"])
 
         # Calculate Sensitivities of output wrt
         dYdTh.append(dY_dX @ dXdTh[i + 1])   # Evolution Parameters
@@ -69,6 +70,49 @@ def solveODE(t, muP, SigmaP, u,  options):
 
     return y, x, SigmaX, dXdTh, dXdX0, dY_dPhi, dYdTh, dYdX0, dG_dP
 
+def Euler(f_model, i, xn, Sthn, Sx0n, u, th, options):
+
+    dt = options["inF"]["dt"]
+    un = u[:, [i]]
+
+    xn2 = xn + dt * f_model(xn, th, un, options["inF"])[0]
+    Sthn2 = Sthn + dt * (f_model(xn, th, un, options["inF"])[2] + f_model(xn, th, un, options["inF"])[1] @ Sthn)
+    Sx0n2 = Sx0n + dt * (f_model(xn, th, un, options["inF"])[1] @ Sx0n)
+
+    return xn2, Sthn2, Sx0n2
+
+def Runge_Kutta(f_model, i, xn, Sthn, Sx0n, u, th, options):
+
+    dt = options["inF"]["dt"]
+    un = u[:, [i]]
+    un2 = u[:, [i+1]]
+
+    # Model States
+    k1 = f_model(xn, th, un, options["inF"])[0]
+    k2 = f_model(xn + dt*k1/2, th, (un + un2)/2, options["inF"])[0]
+    k3 = f_model(xn + dt*k2/2, th, (un + un2)/2, options["inF"])[0]
+    k4 = f_model(xn + dt*k3, th, un2, options["inF"])[0]
+
+    xn2 = xn + dt/6*(k1 + 2*k2 + 2*k3 + k4)
+
+    # Calculate Sensitivities of model states wrt
+        # Evolution Parameters
+    k1 = f_model(xn, th, un, options["inF"])[2] + f_model(xn, th, un, options["inF"])[1] @ Sthn
+    k2 = f_model(xn, th, un, options["inF"])[2] + f_model(xn, th, un, options["inF"])[1] @ (Sthn + dt * k1 / 2)
+    k3 = f_model(xn, th, un, options["inF"])[2] + f_model(xn, th, un, options["inF"])[1] @ (Sthn + dt * k2 / 2)
+    k4 = f_model(xn, th, un, options["inF"])[2] + f_model(xn, th, un, options["inF"])[1] @ (Sthn + dt * k3)
+
+    Sthn2 = Sthn + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+
+        # Initial Conditions
+    k1 = f_model(xn, th, un, options["inF"])[1] @ Sx0n
+    k2 = f_model(xn, th, un, options["inF"])[1] @ (Sx0n + dt * k1 / 2)
+    k3 = f_model(xn, th, un, options["inF"])[1] @ (Sx0n + dt * k2 / 2)
+    k4 = f_model(xn, th, un, options["inF"])[1] @ (Sx0n + dt * k3)
+
+    Sx0n2 = Sx0n + dt / 6 * (k1 + 2 * k2 + 2 * k3 + k4)
+
+    return xn2, Sthn2, Sx0n2
 
 
 def Free_Energy(posterior, priors, suffStat, options):

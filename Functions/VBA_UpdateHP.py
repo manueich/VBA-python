@@ -23,6 +23,7 @@ def UpdateHP(data, t, posterior, priors, suffStat, options):
         dy2 = dy.T @ iQyt @ dy
         a = a + 0.5*np.size(np.diag(iQyt))
         b = b + 0.5*dy2 + 0.5*np.trace(dG_dP[int(idx[0])] @ iQyt @ dG_dP[int(idx[0])].T @ posterior["SigmaP"])
+        b = float(b)
 
     # Update Posterior
     posterior.update({"a": a})
@@ -38,14 +39,16 @@ def UpdateHP(data, t, posterior, priors, suffStat, options):
     y, muX, SigmaX, dXdTh, dXdX0, dYdPhi, dYdTh, dYdX0, dG_dP = base.solveODE(t, posterior["muP"], posterior["SigmaP"], data["u"], options)
 
     # Update suffstat
-    model_out = {"y": y,
+    model_out = {"t": t,
+                 "y": y,
                  "muX": muX,
                  "SigmaX": SigmaX,
                  "dXdTh": dXdTh,
                  "dXdX0": dXdX0,
                  "dYdPhi": dYdPhi,
                  "dYdTh": dYdTh,
-                 "dYdX0": dYdX0}
+                 "dYdX0": dYdX0,
+                 "dG_dP": dG_dP}
     suffStat.update({"model_out": model_out})
 
     return posterior, suffStat

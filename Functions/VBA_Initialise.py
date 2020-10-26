@@ -4,8 +4,9 @@ from Functions import VBA_basics as base
 
 
 def Initialize(data, t, priors, options):
+
     # Check inputs
-    options, data = check_options(options.copy(), priors, data.copy(), t)
+    options = check_options(options.copy())
     priors = check_priors(options, priors.copy())
     options, priors = check_data(options.copy(), priors.copy(), data, t)
     check_model(options, priors, data)
@@ -56,14 +57,16 @@ def Initialize(data, t, priors, options):
             break
 
     # Collect results
-    model_out = {"y": y,
+    model_out = {"t": t,
+                 "y": y,
                  "muX": muX,
                  "SigmaX": SigmaX,
                  "dXdTh": dXdTh,
                  "dXdX0": dXdX0,
                  "dYdPhi": dYdPhi,
                  "dYdTh": dYdTh,
-                 "dYdX0": dYdX0}
+                 "dYdX0": dYdX0,
+                 "dG_dP": dG_dP}
 
     suffStat = {"gx": gx,
                 "dy": dy,
@@ -71,16 +74,18 @@ def Initialize(data, t, priors, options):
                 "dy2": dy2,
                 "logL": logL,
                 "dP": np.zeros((options["dim"]["n_phi"] + options["dim"]["n_theta"] + options["dim"]["n"], 1)),
-                "model_out": model_out}
+                "SigmaP": priors["SigmaP"],
+                "model_out": model_out,
+                "data": data}
 
     F = base.Free_Energy(posterior, priors, suffStat, options)
 
     suffStat.update({"F": [F]})
 
-    return posterior, priors, suffStat
+    return posterior, priors, options, suffStat
 
 
-def check_options(options, priors, data, t):
+def check_options(options):
     if not "dim" in options:
         raise Exception("Please provide model dimensions dim")
 
@@ -121,8 +126,15 @@ def check_options(options, priors, data, t):
         options.update({"updateHP": True})
     if not "verbose" in options:
         options.update({"verbose": True})
+    if not "Display" in options:
+        options.update({"Display": True})
+    if not "ODESolver" in options:
+        options.update({"ODESolver": 'Euler'})
+    elif options["ODESolver"] != 'Euler':
+        if options["ODESolver"] != 'RK':
+            raise Exception("Please specify either 'RK' or 'Euler' as ODESolver in options")
     if not "inF" in options:
-        options.update({"inF": []})
+        raise Exception("Please specify integration step size dt in inF of options structure")
     if not "inG" in options:
         options.update({"inG": []})
 
@@ -131,7 +143,7 @@ def check_options(options, priors, data, t):
     if not "f_model" in options:
         raise Exception("Please provide model function")
 
-    return options, data
+    return options
 
 
 def check_priors(options, priors):
@@ -247,6 +259,7 @@ def check_data(options, priors, data, t):
         ty = data["t"]
 
     dim = options["dim"]
+
     # Check Data
     if np.shape(ty)[0] != 1:
         raise Exception("ty must be a 1 by n array")
@@ -257,6 +270,9 @@ def check_data(options, priors, data, t):
 
     # Check Input
     if not "u" in data:
+        data.update({"u": np.zeros((1, t.size))})
+        dim.update({"nu": 0})
+    elif not data["u"]:
         data.update({"u": np.zeros((1, t.size))})
         dim.update({"nu": 0})
     elif np.shape(data["u"])[1] != np.shape(t)[0]:
@@ -270,7 +286,7 @@ def check_data(options, priors, data, t):
     if t[0] != 0:
         raise Exception("The ODE integration time grid must begin with 0")
     dt = options["inF"]["dt"]
-    if np.any(np.diff(t) != dt):
+    if np.any(np.round(np.diff(t), 8) != dt):
         raise Exception("The ODE integration time grid must match dt in inF")
 
     dim.update({"nD": np.shape(y)[1]})
