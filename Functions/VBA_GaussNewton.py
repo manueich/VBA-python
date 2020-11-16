@@ -84,9 +84,9 @@ def get_move(mu, data, t, posterior, priors, suffStat, options):
     mu0 = priors["muP"]
     dmu0 = mu0 - mu
     ddYdP = 0
-    dy = np.zeros((options["dim"]["nY"], yd.size))
-    vy = np.zeros((options["dim"]["nY"], yd.size))
-    gx = np.zeros((options["dim"]["nY"], yd.size))
+    dy = np.zeros((options["dim"]["nY"], options["dim"]["nD"]))
+    vy = np.zeros((options["dim"]["nY"], options["dim"]["nD"]))
+    gx = np.zeros((options["dim"]["nY"], options["dim"]["nD"]))
     dy2 = 0
     d2GdX2 = 0
     div = False
@@ -96,23 +96,23 @@ def get_move(mu, data, t, posterior, priors, suffStat, options):
 
     # Loop over time series
     for i in range(0, td.size):
-        idx = np.where(t == td[0, i])
-        gx[:, [i]] = y[:, idx[0]]
+        idx = np.where(np.round(t, 8) == np.round(td[0, i], 8))
+        gx[:, [i]] = y[:, idx[1]]
         iQyt = priors["iQy"][i]
 
         # Posterior Covaraince Matrix terms
-        d2GdX2 = d2GdX2 + dG_dP[int(idx[0])] @ iQyt @ dG_dP[int(idx[0])].T
+        d2GdX2 = d2GdX2 + dG_dP[int(idx[1])] @ iQyt @ dG_dP[int(idx[1])].T
 
         # Error terms
         dy[:, [i]] = yd[:, [i]] - gx[:, [i]]
         dy2 = dy2 + dy[:, [i]].T @ iQyt @ dy[:, [i]]
-        ddYdP = ddYdP + dG_dP[int(idx[0])] @ iQyt @ dy[:, [i]]
+        ddYdP = ddYdP + dG_dP[int(idx[1])] @ iQyt @ dy[:, [i]]
 
         # Predictive density (data space)
-        V = dG_dP[int(idx[0])].T @ posterior["SigmaP"] @ dG_dP[int(idx[0])] + 1 / sigmaHat * base.Invert_M(iQyt)
+        V = dG_dP[int(idx[1])].T @ posterior["SigmaP"] @ dG_dP[int(idx[1])] + 1 / sigmaHat * base.Invert_M(iQyt)
         vy[:, [i]] = (np.diag(V)).reshape((options["dim"]["nY"], 1))
 
-        if base.isWeird(dy2) or base.isWeird(dG_dP[int(idx[0])]):
+        if base.isWeird(dy2) or base.isWeird(dG_dP[int(idx[1])]):
             div = True
             break
 

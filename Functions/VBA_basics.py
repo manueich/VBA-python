@@ -18,8 +18,8 @@ def solveODE(t, muP, SigmaP, u,  options):
     f_obs = options["f_obs"]
 
     # Preallocate Variables
-    x = np.zeros((dim["n"], t.size))
-    y = np.zeros((dim["nY"], t.size))
+    x = np.zeros((dim["n"], np.shape(t)[1]))
+    y = np.zeros((dim["nY"], np.shape(t)[1]))
     SigmaX = [SigmaP[dim["n_theta"]+dim["n_phi"]: dim["n_theta"]+dim["n_phi"]+dim["n"], dim["n_theta"]+dim["n_phi"]: dim["n_theta"]+dim["n_phi"]+dim["n"]]]
 
     # Set initial conditions
@@ -29,29 +29,29 @@ def solveODE(t, muP, SigmaP, u,  options):
 
     # Preallocate Variables
     dXdTh = [np.zeros((dim["n"], dim["n_theta"]))]
-    for i in range(0, t.size - 1):
+    for i in range(0, np.shape(t)[1] - 1):
         dXdTh.append(np.zeros((dim["n"], dim["n_theta"])))
 
     dXdX0 = [np.eye(dim["n"])]
-    for i in range(0, t.size - 1):
+    for i in range(0, np.shape(t)[1] - 1):
         dXdX0.append(np.zeros((dim["n"], dim["n"])))
 
     dYdTh = [f_obs(x[:, 0], phi, u[:, 0], options["inG"])[1] @ dXdTh[0]]
     dYdX0 = [f_obs(x[:, 0], phi, u[:, 0], options["inG"])[1] @ dXdX0[0]]
     dYdPhi = [f_obs(x[:, 0], phi, u[:, 0], options["inG"])[2]]
 
-    dG_dP = [np.concatenate((dYdPhi[0].T, dYdTh[0].T, dYdX0[0].T))]
+    dG_dP = [np.concatenate((dYdPhi[0].T, dYdTh[0].T, dYdX0[0].T), 0)]
 
-    dt = options["inF"]["dt"]
+    dt = t[0, 1] - t[0, 0]
 
     # Loop over integration time
-    for i in range(0, t.size - 1):
+    for i in range(0, np.shape(t)[1] - 1):
 
         # Model
         if options["ODESolver"] == 'RK':
-            x[:, [i + 1]], dXdTh[i + 1], dXdX0[i + 1] = Runge_Kutta(f_model, i, x[:, [i]], dXdTh[i], dXdX0[i], u, th, options)
+            x[:, [i + 1]], dXdTh[i + 1], dXdX0[i + 1] = Runge_Kutta(f_model, i, x[:, [i]], dXdTh[i], dXdX0[i], u, th, options, dt)
         if options["ODESolver"] == 'Euler':
-            x[:, [i + 1]], dXdTh[i + 1], dXdX0[i + 1] = Euler(f_model, i, x[:, [i]], dXdTh[i], dXdX0[i], u, th, options)
+            x[:, [i + 1]], dXdTh[i + 1], dXdX0[i + 1] = Euler(f_model, i, x[:, [i]], dXdTh[i], dXdX0[i], u, th, options, dt)
         # Observation
         y[:, [i + 1]], dY_dX, dY_dPhi = f_obs(x[:, [i + 1]], phi, u[:, [i]], options["inG"])
 
@@ -59,7 +59,7 @@ def solveODE(t, muP, SigmaP, u,  options):
         dYdTh.append(dY_dX @ dXdTh[i + 1])   # Evolution Parameters
         dYdX0.append(dY_dX @ dXdX0[i + 1])   # Initial Conditions
         dYdPhi.append(dY_dPhi)               # Observation Parameters
-        dG_dP.append(np.concatenate((dYdPhi[i + 1].T, dYdTh[i + 1].T, dYdX0[i + 1].T)))
+        dG_dP.append(np.concatenate((dYdPhi[i + 1].T, dYdTh[i + 1].T, dYdX0[i + 1].T), 0))
 
         # Uncertainties in model states
         dXdP = np.concatenate((dXdTh[i+1], dXdX0[i+1]), 1)
@@ -70,9 +70,9 @@ def solveODE(t, muP, SigmaP, u,  options):
 
     return y, x, SigmaX, dXdTh, dXdX0, dY_dPhi, dYdTh, dYdX0, dG_dP
 
-def Euler(f_model, i, xn, Sthn, Sx0n, u, th, options):
 
-    dt = options["inF"]["dt"]
+def Euler(f_model, i, xn, Sthn, Sx0n, u, th, options, dt):
+
     un = u[:, [i]]
 
     xn2 = xn + dt * f_model(xn, th, un, options["inF"])[0]
@@ -81,9 +81,9 @@ def Euler(f_model, i, xn, Sthn, Sx0n, u, th, options):
 
     return xn2, Sthn2, Sx0n2
 
-def Runge_Kutta(f_model, i, xn, Sthn, Sx0n, u, th, options):
 
-    dt = options["inF"]["dt"]
+def Runge_Kutta(f_model, i, xn, Sthn, Sx0n, u, th, options, dt):
+
     un = u[:, [i]]
     un2 = u[:, [i+1]]
 

@@ -15,14 +15,14 @@ def UpdateHP(data, t, posterior, priors, suffStat, options):
 
     # Loop over time series
     for i in range(0, td.size):
-        idx = np.where(t == td[0, i])
-        gx = y[:, idx[0]]
+        idx = np.where(np.round(t, 8) == np.round(td[0, i], 8))
+        gx = y[:, idx[1]]
         iQyt = priors["iQy"][i]
 
         dy = yd[:, [i]] - gx
         dy2 = dy.T @ iQyt @ dy
         a = a + 0.5*np.size(np.diag(iQyt))
-        b = b + 0.5*dy2 + 0.5*np.trace(dG_dP[int(idx[0])] @ iQyt @ dG_dP[int(idx[0])].T @ posterior["SigmaP"])
+        b = b + 0.5*dy2 + 0.5*np.trace(dG_dP[int(idx[1])] @ iQyt @ dG_dP[int(idx[0])].T @ posterior["SigmaP"])
         b = float(b)
 
     # Update Posterior

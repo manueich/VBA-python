@@ -36,23 +36,23 @@ def Initialize(data, t, priors, options):
 
     # Loop over time series
     for i in range(0, td.size):
-        idx = np.where(t == td[0, i])
+        idx = np.where(np.round(t, 8) == np.round(td[0, i], 8))
 
         sigmaHat = priors["a"] / priors["b"]
         iQyt = priors["iQy"][i]
 
         # Get intermediate values
-        gx[:, [i]] = y[:, idx[0]]
-        _, _, logL_t, dy[:, [i]], dy2_t, vy[:, [i]] = get_dL(y[:, idx[0]], yd[:, [i]], dG_dP[int(idx[0])], sigmaHat, iQyt)
+        gx[:, [i]] = y[:, idx[1]]
+        _, _, logL_t, dy[:, [i]], dy2_t, vy[:, [i]] = get_dL(y[:, idx[0]], yd[:, [i]], dG_dP[int(idx[1])], sigmaHat, iQyt)
 
         # Aggregate
         dy2 = dy2 + dy2_t
         logL = logL + logL_t
 
-        V = dG_dP[int(idx[0])].T @ priors["SigmaP"] @ dG_dP[int(idx[0])]
+        V = dG_dP[int(idx[1])].T @ priors["SigmaP"] @ dG_dP[int(idx[1])]
         vy[:, [i]] = vy[:, [i]] + (np.diag(V)).reshape((options["dim"]["nY"], 1))
 
-        if base.isWeird(dy2) or base.isWeird(dG_dP[int(idx[0])]):
+        if base.isWeird(dy2) or base.isWeird(dG_dP[int(idx[1])]):
             div = True
             break
 
@@ -110,6 +110,10 @@ def check_options(options):
     elif dim["n_phi"] < 0 or (dim["n_phi"] % 1) != 0:
         raise Exception("Please provide a valid number of observation parameters n_phi in dim")
 
+    if not "f_obs" in options:
+        raise Exception("Please provide observation function")
+    if not "f_model" in options:
+        raise Exception("Please provide model function")
 
     options.update({"dim": dim})
 
@@ -134,14 +138,9 @@ def check_options(options):
         if options["ODESolver"] != 'RK':
             raise Exception("Please specify either 'RK' or 'Euler' as ODESolver in options")
     if not "inF" in options:
-        raise Exception("Please specify integration step size dt in inF of options structure")
+        options.update({"inF": []})
     if not "inG" in options:
         options.update({"inG": []})
-
-    if not "f_obs" in options:
-        raise Exception("Please provide observation function")
-    if not "f_model" in options:
-        raise Exception("Please provide model function")
 
     return options
 
@@ -262,7 +261,7 @@ def check_data(options, priors, data, t):
 
     # Check Data
     if np.shape(ty)[0] != 1:
-        raise Exception("ty must be a 1 by n array")
+        raise Exception("ty must be a 1 by nD array")
     if np.shape(ty)[1] != np.shape(y)[1]:
         raise Exception("The length of ty must match the elements in y")
     if base.isWeird(y):
@@ -272,10 +271,7 @@ def check_data(options, priors, data, t):
     if not "u" in data:
         data.update({"u": np.zeros((1, t.size))})
         dim.update({"nu": 0})
-    elif not data["u"]:
-        data.update({"u": np.zeros((1, t.size))})
-        dim.update({"nu": 0})
-    elif np.shape(data["u"])[1] != np.shape(t)[0]:
+    elif np.shape(data["u"])[1] != np.shape(t)[1]:
         raise Exception("Inputs in u must be specified on the ODE integration time step t")
     elif base.isWeird(data["u"]):
         raise Exception("The data in u contains NaNs or Infs")
@@ -283,11 +279,13 @@ def check_data(options, priors, data, t):
         dim.update({"nu": np.shape(data["u"])[0]})
 
     # Check integration time Grid
-    if t[0] != 0:
+    if t[0, 0] != 0:
         raise Exception("The ODE integration time grid must begin with 0")
-    dt = options["inF"]["dt"]
+    dt = t[0, 1] - t[0, 0]
     if np.any(np.round(np.diff(t), 8) != dt):
         raise Exception("The ODE integration time grid must match dt in inF")
+    if ty[0, 0] < 0 or ty[0, -1] > t[0, -1]:
+        raise Exception("Data timepoints ty lie outside of integration time grid")
 
     dim.update({"nD": np.shape(y)[1]})
     dim.update({"nY": np.shape(y)[0]})
@@ -331,12 +329,12 @@ def check_model(options, priors, data):
     f_obs = options["f_obs"]
 
     try:
-        x, J, H = f_model(x0, th, u[:, 0], options["inF"])
-        y, dY_dX, dY_dPhi = f_obs(x, phi, u[:, 0], options["inG"])
+        dx, J, H = f_model(x0, th, u[:, [0]], options["inF"])
+        y, dY_dX, dY_dPhi = f_obs(dx, phi, u[:, [0]], options["inG"])
     except:
         raise Exception("The model produces error (see above)")
 
-    if np.shape(x)[0] != dim["n"] or np.shape(x)[1] != 1:
+    if np.shape(dx)[0] != dim["n"] or np.shape(dx)[1] != 1:
         raise Exception("Model Error: Dimensions of x must be n by 1")
     if np.shape(J)[0] != dim["n"] or np.shape(J)[1] != dim["n"]:
         raise Exception("Model Error: Dimensions of J must be n by n")
