@@ -3,7 +3,6 @@ from Functions import VBA_UpdateHP as VBA_HP, VBA_GaussNewton as VBA_GN, VBA_Ini
     VBA_plotting as plotting, VBA_basics as base
 from timeit import default_timer as timer
 import matplotlib.pyplot as plt
-import matplotlib.pylab as pl
 
 
 def main(data, t, priors, options):
