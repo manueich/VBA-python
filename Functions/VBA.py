@@ -56,7 +56,7 @@ def main(data, t, priors, options):
             else:
                 conv = 0
     end = timer()
-    print('VB inversion complete (took ~', end-start, 's).')
+    print('VB inversion complete (took ~', np.round(end-start, 1), 's).')
 
     del posterior["iQy"]
     del posterior["muP"]
@@ -68,14 +68,14 @@ def main(data, t, priors, options):
            "ModelOut": suffStat["model_out"],
            "suffStat": suffStat}
 
-    # Keep Figure Window displayed
-    if options["Display"]:
-        plt.show()
+    # # Keep Figure Window displayed
+    # if options["Display"]:
+    #     plt.show()
 
     return posterior, out
 
 
-def simulate(td, t, u, priors, options, plotting):
+def simulate(td, t, u, priors, options, plot_bool):
 
     # Check inputs
     options = VBA_init.check_options(options.copy())
@@ -107,30 +107,18 @@ def simulate(td, t, u, priors, options, plotting):
 
         yd[:, [i]] = y[:, idx[1]] + epsilon[:, [i]]
 
-    if plotting:
-        plt.show()
-        fig, ax = plt.subplots(nrows=2, ncols=1, figsize=(8, 6))
-        plt.subplots_adjust(left=0.05, bottom=0.05, right=0.95, top=0.95, wspace=0.3, hspace=0.3)
-        ax[0].set_title('Simulated Data')
-        ax[1].set_title('Simulated Model States')
-
-        colors = pl.cm.Set1(np.arange(0, np.shape(yd)[0]))
-
-        for i in range(0, np.shape(yd)[0]):
-            yp = np.reshape(yd[[i], :], (np.shape(td)[1]))
-            tp = np.reshape(td, (np.shape(td)[1]))
-            ax[0].plot(tp, yp, marker='o', ls='--', color=colors[i])
-            plt.pause(1e-17)
-
-        colors = pl.cm.Set1(np.arange(0, np.shape(muX)[0]))
-
-        for i in range(0, np.shape(muX)[0]):
-            yp = np.reshape(muX[[i], :], (np.shape(t)[1]))
-            tp = np.reshape(t, (np.shape(t)[1]))
-            ax[1].plot(tp, yp, ls='-', color=colors[i])
-            plt.pause(1e-17)
+    if plot_bool:
+        plotting.plot_sim(td, yd, t, muX)
 
     return yd
+
+
+def compare_to_sim(posterior, prios_sim, options):
+
+    plotting.compare_to_sim(posterior, prios_sim, options)
+    plt.show()
+
+    return
 
 
 def check_data(ty, t, u, priors, options):

@@ -2,28 +2,24 @@ import numpy as np
 from Functions import VBA
 from Demos.VanDerPolOscillator import f_VanDerPol as f_model
 
+# Demo that illustrates the inversion of a model describing a van der Pol oscillator
+# partially observed through a logistic mapping
+
 # -------------- SIMULATE MODEL ------------------------------
 
 # Integration Time grid
-dt = 0.1
-t = np.arange(0, 10 + dt, dt)
+dt = 0.05
+t = np.arange(0, 12 + dt, dt)
 t = t.reshape(1, t.size)
 
 # Time points at which to provide data
-ty = np.arange(1, 10+0.2, 0.2)
+ty = np.arange(1, 12+0.2, 0.2)
 ty = ty.reshape(1, ty.size)
-
-# Input
-u = np.zeros((2, np.shape(t)[1]))
 
 # Model Dimensions
 dim = {"n": 2,          # Model order
        "n_theta": 1,    # No of evolution parameters
-       "n_phi": 0}      # No of observation parameters
-
-# Integration time step
-inG = {"scale": 1,
-       "slope": 2}
+       "n_phi": 1}      # No of observation parameters
 
 # Create prior structure
     # - Evolution Parameters
@@ -37,40 +33,49 @@ muX0[0] = 1
 muX0[1] = 1
 SigmaX0 = np.eye(muX0.size)
 
+    # - Observation Parameters
+muPhi = np.zeros((dim["n_phi"], 1))
+muPhi[0] = 2
+SigmaPhi = np.eye(muTheta.size)
+
     # - Noise parameters
-a = 1000
+a = 500
 b = 1
 
-priors = {"a": a,
-          "b": b,
-          "muTheta": muTheta,
-          "SigmaTheta": SigmaTheta,
-          "muX0": muX0,
-          "SigmaX0": SigmaX0}
+# Priors for simulation
+priors_sim = {"a": a,
+              "b": b,
+              "muTheta": muTheta,
+              "SigmaTheta": SigmaTheta,
+              "muX0": muX0,
+              "SigmaX0": SigmaX0,
+              "muPhi": muPhi,
+              "SigmaPhi": SigmaPhi}
 
 # Define Options
 options = {"f_model": f_model.f_model,
            "f_obs": f_model.f_obs,
-           "ODESolver": 'RK',
-           "inG": inG,
            "dim": dim,
            "Display": True}
 
 # Simulate Data
-yd = VBA.simulate(ty, t, u, priors, options, True)
+yd = VBA.simulate(ty, t, [], priors_sim, options, True)
 
-# ---------------------------------------------
-
-# Change Prior structure
-priors.update({"muTheta": 0.1*np.ones((dim["n_theta"], 1))})
-priors.update({"muX0": 0.1*np.ones((dim["n"], 1))})
-priors.update({"a": 1})
-priors.update({"b": 1})
-
+# -------- MODEL INVERSION --------------
+# Set data
 data = {"y": yd,
-        "t": ty,
-        "u": u}
+        "t": ty}
+
+# Change Prior structure for model inversion
+priors = priors_sim.copy()
+priors.update({"muTheta": 0.1*np.ones((dim["n_theta"], 1))})
+priors.update({"muPhi": 0.1*np.ones((dim["n_theta"], 1))})
+priors.update({"muX0": 0.1*np.ones((dim["n"], 1))})
+priors.update({"a": 0.1})
+priors.update({"b": 0.1})
 
 # Call Inversion routine
 posterior, out = VBA.main(data, t, priors, options)
-print("dONE")
+
+# Compare inferred posterior to true values used for the simulation
+VBA.compare_to_sim(posterior, priors_sim, options)

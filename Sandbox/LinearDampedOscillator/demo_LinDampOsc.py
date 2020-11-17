@@ -1,6 +1,6 @@
 import numpy as np
 from Functions import VBA
-from Demos.LinearDampedOscillator import f_LinDamOsc as f_model
+from Sandbox.LinearDampedOscillator import f_LinDamOsc as f_model
 
 # -------------- SIMULATE MODEL ------------------------------
 
