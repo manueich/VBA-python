@@ -1,6 +1,6 @@
 import numpy as np
 import scipy.linalg as la
-from Functions import VBA_basics as base
+from . import VBA_basics as base
 
 
 def Initialize(data, t, priors, options):
@@ -43,13 +43,14 @@ def Initialize(data, t, priors, options):
 
         # Get intermediate values
         gx[:, [i]] = y[:, idx[1]]
-        _, _, logL_t, dy[:, [i]], dy2_t, vy[:, [i]] = get_dL(y[:, idx[0]], yd[:, [i]], dG_dP[int(idx[1])], sigmaHat, iQyt)
+        _, _, logL_t, dy[:, [i]], dy2_t, vy[:, [i]] = get_dL(y[:, idx[1]], yd[:, [i]], dG_dP[int(idx[1])], sigmaHat, iQyt)
 
         # Aggregate
         dy2 = dy2 + dy2_t
         logL = logL + logL_t
 
         V = dG_dP[int(idx[1])].T @ priors["SigmaP"] @ dG_dP[int(idx[1])]
+        # print(V)
         vy[:, [i]] = vy[:, [i]] + (np.diag(V)).reshape((options["dim"]["nY"], 1))
 
         if base.isWeird(dy2) or base.isWeird(dG_dP[int(idx[1])]):
@@ -156,10 +157,10 @@ def check_priors(options, priors):
                              atol=1e-12):
             raise Exception("Dimension of priors for SigmaX0 does not match model order")
         if np.any(np.diag(priors["SigmaX0"]) == 0):
-            idx = np.where(np.diag(priors["SigmaX0"]) == 0)
+            idx = np.where(np.diag(priors["SigmaX0"]) == 0)[0]
             sig = priors["SigmaX0"]
             for i in range(0, np.size(idx)):
-                sig[idx, idx] = 1e-12
+                sig[idx[i], idx[i]] = 1E-12
             priors.update({"SigmaX0": sig})
     else:
         priors.update({"muX0": np.array([[]]).T, "SigmaX0": np.array([[]]).T})
@@ -174,10 +175,10 @@ def check_priors(options, priors):
                              atol=1e-12):
             raise Exception("Dimension of priors for SigmaTheta does not match n_theta in dim")
         if np.any(np.diag(priors["SigmaTheta"]) == 0):
-            idx = np.where(np.diag(priors["SigmaTheta"]) == 0)
+            idx = np.where(np.diag(priors["SigmaTheta"]) == 0)[0]
             sig = priors["SigmaTheta"]
             for i in range(0, np.size(idx)):
-                sig[idx, idx] = 1e-12
+                sig[idx[i], idx[i]] = 1e-12
             priors.update({"SigmaTheta": sig})
     else:
         priors.update({"muTheta": np.array([[]]).T, "SigmaTheta": np.array([[]]).T})
@@ -192,10 +193,10 @@ def check_priors(options, priors):
                              atol=1e-12):
             raise Exception("Dimension of priors for SigmaPhi does not match n_phi in dim")
         if np.any(np.diag(priors["SigmaPhi"]) == 0):
-            idx = np.where(np.diag(priors["SigmaPhi"]) == 0)
+            idx = np.where(np.diag(priors["SigmaPhi"]) == 0)[0]
             sig = priors["SigmaPhi"]
             for i in range(0, np.size(idx)):
-                sig[idx, idx] = 1e-12
+                sig[idx[i], idx[i]] = 1e-12
             priors.update({"SigmaPhi": sig})
     else:
         priors.update({"muPhi": np.array([[]]).T, "SigmaPhi": np.array([[]]).T})
@@ -296,19 +297,14 @@ def check_data(options, priors, data, t):
         if len(priors["iQy"]) != options["dim"]["nD"]:
             raise Exception("The size of iQy must match the given data")
         else:
-            iQy = [0] * len(priors["iQy"])
             for i in range(0, len(priors["iQy"])):
                 if np.shape(priors["iQy"][i])[0] != options["dim"]["nY"] or np.shape(priors["iQy"][i])[1] != options["dim"]["nY"]:
                     raise Exception("Inconsistent dimension in iQy")
-                else:
-                    diQ = np.diag(priors["iQy"][i])
-                    iQy[i] = np.diag(diQ) @ priors["iQy"][i] @ np.diag(diQ)
     else:
         iQy = [np.eye(options["dim"]["nY"])]
         for i in range(0, options["dim"]["nD"]-1):
             iQy.append(np.eye(options["dim"]["nY"]))
-
-    priors.update({"iQy": iQy})
+        priors.update({"iQy": iQy})
 
     return options, priors
 

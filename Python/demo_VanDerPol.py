@@ -1,6 +1,6 @@
 import numpy as np
-from Functions import VBA
-from Demos.VanDerPolOscillator import f_VanDerPol as f_model
+import VBA_Python as VBA
+import f_VanDerPol as f_model
 
 # Demo that illustrates the inversion of a model describing a van der Pol oscillator
 # partially observed through a logistic mapping
@@ -59,7 +59,7 @@ options = {"f_model": f_model.f_model,
            "Display": True}
 
 # Simulate Data
-yd = VBA.simulate(ty, t, [], priors_sim, options, True)
+yd = VBA.VBA_simulate.simulate(ty, t, [], priors_sim, options, True)
 
 # -------- MODEL INVERSION --------------
 # Set data
@@ -75,7 +75,7 @@ priors.update({"a": 0.1})
 priors.update({"b": 0.1})
 
 # Call Inversion routine
-posterior, out = VBA.main(data, t, priors, options)
+posterior, out = VBA.VBA_Main.main(data, t, priors, options)
 
 # Compare inferred posterior to true values used for the simulation
-VBA.compare_to_sim(posterior, priors_sim, options)
+VBA.VBA_simulate.compare_to_sim(posterior, priors_sim, options)

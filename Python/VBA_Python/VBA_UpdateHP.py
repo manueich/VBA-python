@@ -1,5 +1,5 @@
 import numpy as np
-from Functions import VBA_basics as base
+from . import VBA_basics as base
 
 
 def UpdateHP(data, t, posterior, priors, suffStat, options):
@@ -22,7 +22,7 @@ def UpdateHP(data, t, posterior, priors, suffStat, options):
         dy = yd[:, [i]] - gx
         dy2 = dy.T @ iQyt @ dy
         a = a + 0.5*np.size(np.diag(iQyt))
-        b = b + 0.5*dy2 + 0.5*np.trace(dG_dP[int(idx[1])] @ iQyt @ dG_dP[int(idx[0])].T @ posterior["SigmaP"])
+        b = b + 0.5*dy2 + 0.5*np.trace(dG_dP[int(idx[1])] @ iQyt @ dG_dP[int(idx[1])].T @ posterior["SigmaP"])
         b = float(b)
 
     # Update Posterior
